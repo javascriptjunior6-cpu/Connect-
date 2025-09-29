@@ -1,0 +1,236 @@
+// ---- Fake DB ----
+let db = {};
+
+async function loadDB() {
+  const response = await fetch("data.json");
+  db = await response.json();
+  loadTrends(); // load default page once
+}
+
+// ---- Elements ----
+const buttons = document.querySelectorAll(".tab-btn");
+const mainContent = document.getElementById("main-content");
+const profileBtn = document.querySelector(".profile-btn");
+
+// ---- Import Feeds ----
+import feeds from "./feeds.js";
+// ---- Trending Tab ----
+let cachedItems = [];
+let itemsPerPage = 20;
+let currentIndex = 0;
+
+async function loadTrends() {
+  mainContent.innerHTML = `
+    <h2>🔥 Trending Coding Content</h2>
+    <div id="trends-container"></div>
+  `;
+  const container = document.getElementById("trends-container");
+
+  if (!cachedItems.length) {
+    let allItems = [];
+
+    await Promise.all(feeds.map(async feed => {
+      try {
+        const res = await fetch(feed.url);
+        let items = [];
+
+        if (feed.type === "video") {
+          const text = await res.text();
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(text, "application/xml");
+          items = Array.from(xml.querySelectorAll("entry")).map(e => {
+            const videoId = e.querySelector("yt\\:videoId")?.textContent;
+            return {
+              type: "video",
+              title: e.querySelector("title")?.textContent?.trim(),
+              url: e.querySelector("link")?.getAttribute("href"),
+              thumbnail: videoId ? `https://img.youtube.com/vi/${videoId}/0.jpg` : null,
+              source: "YouTube",
+              description: e.querySelector("media\\:group > media\\:description")?.textContent?.slice(0, 150) || ""
+            };
+          });
+        } else if (feed.type === "article-rss") {
+          const text = await res.text();
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(text, "application/xml");
+          items = Array.from(xml.querySelectorAll("item")).map(e => ({
+            type: "article",
+            title: e.querySelector("title")?.textContent?.trim(),
+            description: e.querySelector("description")?.textContent?.replace(/<[^>]+>/g, "").slice(0, 200) || "",
+            url: e.querySelector("link")?.textContent,
+            source: new URL(feed.url).hostname.replace("www.", ""),
+            thumbnail: null
+          }));
+        }
+
+        allItems = allItems.concat(items.slice(0, 30)); // limit per feed
+      } catch (err) {
+        console.warn("❌ Failed to load feed:", feed.url, err);
+      }
+    }));
+
+    // Fetch og:image for articles without thumbnails
+    await Promise.all(allItems.map(async item => {
+      if (item.type === "article" && !item.thumbnail && item.url) {
+        try {
+          const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(item.url)}`);
+          const html = await res.text();
+          const doc = new DOMParser().parseFromString(html, "text/html");
+          const ogImage = doc.querySelector("meta[property='og:image']")?.content;
+          if (ogImage) item.thumbnail = ogImage;
+        } catch (e) {}
+      }
+    }));
+
+    cachedItems = allItems.sort(() => Math.random() - 0.5); // shuffle
+  }
+
+  currentIndex = 0;
+  container.innerHTML = "";
+  loadMoreItems(); // load first batch
+
+  // Infinite scroll
+  window.addEventListener("scroll", () => {
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+      loadMoreItems();
+    }
+  });
+}
+
+function loadMoreItems() {
+  const container = document.getElementById("trends-container");
+  if (currentIndex >= cachedItems.length) return;
+
+  const nextItems = cachedItems.slice(currentIndex, currentIndex + itemsPerPage);
+  container.insertAdjacentHTML("beforeend", nextItems.map(item => {
+    // Thumbnail fallback
+    let thumbHTML = '';
+    if (item.thumbnail) {
+      thumbHTML = item.type === "video"
+        ? `<div class="video-thumb"><img src="${item.thumbnail}" alt="${item.title}"></div>`
+        : `<img class="article-thumb" src="${item.thumbnail}" alt="${item.title}">`;
+    } else {
+      thumbHTML = item.type === "video"
+        ? `<div class="video-thumb" style="background: linear-gradient(135deg,#6a11cb,#2575fc); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold;">No Image</div>`
+        : `<div class="article-thumb" style="background: linear-gradient(135deg,#ff512f,#dd2476); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold;">No Image</div>`;
+    }
+
+    // Card HTML
+    if (item.type === "video") {
+      return `
+        <div class="card fade-in trend-card video-card" onclick="window.open('${item.url}','_blank')">
+          ${thumbHTML}
+          <div class="video-info">
+            <h3>${item.title}</h3>
+            <p>${item.description || ""}</p>
+            <small>🎬 ${item.source}</small>
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="card fade-in trend-card article-card" onclick="window.open('${item.url}','_blank')">
+          ${thumbHTML}
+          <div class="article-info">
+            <h3>${item.title}</h3>
+            <p>${item.description || ""}</p>
+            <small>📰 ${item.source}</small>
+          </div>
+        </div>
+      `;
+    }
+  }).join(""));
+
+  currentIndex += itemsPerPage;
+}
+// ---- Friends Tab ----
+function loadFriends() {
+  mainContent.innerHTML = `
+    <h2>Friends</h2>
+    ${db.users.filter(u => u.id !== db.users[0].id).map(user => `
+      <div class="card fade-in friend-card">
+        <button class="message-btn" onclick="startChat(${user.id})">Message</button>
+        <img src="${user.profilePic}" alt="${user.name}" class="friend-pic">
+        <h3 class="friend-name">${user.name}</h3>
+        <p class="friend-username">@${user.username}</p>
+        <p class="friend-bio">${user.bio}</p>
+        <p class="friend-follow">Followers: ${user.followers} • Following: ${user.following}</p>
+      </div>
+    `).join("")}
+  `;
+}
+
+// ---- Chats Tab ----
+function loadChats(activeUserId = null) {
+  const currentUser = db.users[0];
+  const friends = db.users.filter(u => u.id !== currentUser.id);
+
+  const chatsList = db.chats.map(chat => {
+    const friendId = chat.users.find(id => id !== currentUser.id);
+    const friend = db.users.find(u => u.id === friendId);
+    const lastMessage = chat.messages[chat.messages.length - 1];
+    return { friend, lastMessage };
+  });
+
+  mainContent.innerHTML = `
+    <h2>Chats</h2>
+    <div class="friends-scroll">
+      ${friends.map(f => `
+        <div class="friend-card" onclick="startChat(${f.id})">
+          <img src="${f.profilePic}" alt="${f.name}">
+          <span>${f.name.split(" ")[0]}</span>
+        </div>
+      `).join("")}
+    </div>
+    <div class="chats-list">
+      ${chatsList.map(c => `
+        <div class="chat-card" onclick="startChat(${c.friend.id})">
+          <img src="${c.friend.profilePic}" alt="${c.friend.name}">
+          <div class="chat-info">
+            <strong>${c.friend.name}</strong>
+            <p class="last-message">${c.lastMessage.text}</p>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  if (activeUserId) startChat(activeUserId);
+}
+
+// ---- Profile Tab ----
+function loadProfile() {
+  const user = db.users[0];
+  mainContent.innerHTML = `
+    <div class="card profile-card fade-in">
+      <img src="${user.profilePic}" alt="${user.name}">
+      <h3>${user.name}</h3>
+      <p>@${user.username}</p>
+      <p>${user.bio}</p>
+      <p>Followers: ${user.followers} • Following: ${user.following}</p>
+      <p>Joined: ${user.joined}</p>
+    </div>
+  `;
+}
+
+// ---- Event Listeners ----
+buttons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    buttons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const page = btn.getAttribute("data-page");
+    if (page === "trends") loadTrends();
+    if (page === "friends") loadFriends();
+    if (page === "chats") loadChats();
+    if (page === "learn") loadLearn();
+  });
+});
+
+profileBtn.addEventListener("click", () => {
+  buttons.forEach(b => b.classList.remove("active"));
+  loadProfile();
+});
+
+// ---- Start App ----
+loadDB();

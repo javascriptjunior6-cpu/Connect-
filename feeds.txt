@@ -1,0 +1,44 @@
+// feeds.js
+const feeds = [
+  // === YouTube Coding Channels ===
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC8butISFwT-Wl7EV0hUK0BQ" }, // freeCodeCamp
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC29ju8bIPH5as8OGnQzwJyA" }, // Traversy Media
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCSJbGtTlrDami-tDGPUV9-w" }, // The Net Ninja
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCFbNIlppjAuEX4znoulh0Cw" }, // Web Dev Simplified
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCVyRiMvfUNMA1UPlDPzG5Ow" }, // DesignCourse
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCV0qA-eDDICsRR9rPcnG7tw" }, // ProgrammingKnowledge
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCXgGY0wkgOzynnHvSEVmE3A" }, // Tech With Tim
+  { type: "video", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCJZv4d5rbIKd4QHMPkcABCw" }, // TechLead
+
+  // === GitHub & Dev ===
+  { type: "article-rss", url: "https://github.blog/feed/" },
+  { type: "article-rss", url: "https://rsshub.app/github/trending/daily" }, 
+  { type: "article-rss", url: "https://stackoverflow.blog/feed/" },
+  { type: "article-rss", url: "https://hashnode.com/feed" },
+  { type: "article-rss", url: "https://dev.to/feed" },
+
+  // === Reddit Programming Communities ===
+  { type: "article-rss", url: "https://www.reddit.com/r/programming/.rss" },
+  { type: "article-rss", url: "https://www.reddit.com/r/javascript/.rss" },
+  { type: "article-rss", url: "https://www.reddit.com/r/webdev/.rss" },
+  { type: "article-rss", url: "https://www.reddit.com/r/learnprogramming/.rss" },
+
+  // === Hacker News ===
+  { type: "article-rss", url: "https://hnrss.org/frontpage" },
+  { type: "article-rss", url: "https://hnrss.org/newest" },
+
+  // === Dev Blogs / Tutorials ===
+  { type: "article-rss", url: "https://hacks.mozilla.org/feed/" },
+  { type: "article-rss", url: "https://developer.chrome.com/blog/feed.xml" },
+  { type: "article-rss", url: "https://www.smashingmagazine.com/feed/" },
+  { type: "article-rss", url: "https://css-tricks.com/feed/" },
+  { type: "article-rss", url: "https://www.sitepoint.com/feed/" },
+  { type: "article-rss", url: "https://scotch.io/feed" },
+
+  // === Books / Publishing for Developers ===
+  { type: "article-rss", url: "https://feeds.feedburner.com/PacktPublishing" },
+  { type: "article-rss", url: "https://www.oreilly.com/radar/feed/" },
+  { type: "article-rss", url: "https://freecontent.manning.com/feed/" }
+];
+
+export default feeds;
